@@ -22,6 +22,8 @@ local runService = game:GetService('RunService')
 local virtualInputManager = game:GetService("VirtualInputManager")
 local repStorage = game:GetService('ReplicatedStorage')
 
+local random = Random.new()
+
 do
 	if shared._unload then
 		pcall(shared._unload)
@@ -54,13 +56,20 @@ do
 		while true do
 			task.wait()
 			if ((Toggles.AutoHeal) and (Toggles.AutoHeal.Value)) then
-				if client.Character:IsDescendantOf(workspace) and client.Character:FindFirstChild('Humanoid') and client.Character.Humanoid.Health < ((Options.HealPercentage.Value / 100 * client.Character.Humanoid.MaxHealth) - 1) and workspace:FindFirstChild('Map') and workspace.Map:FindFirstChild('HealPart', true) then
+				if client.Character:IsDescendantOf(workspace) and client.Character:FindFirstChild('Humanoid') and client.Character.Humanoid.Health < ((Options.HealPercentage.Value / 100 * client.Character.Humanoid.MaxHealth) - 1) then
 					local oldPivot = client.Character:GetPivot()
 					shared.healing = true
-					repeat
-						client.Character:PivotTo(workspace.Map:FindFirstChild('HealPart', true):GetPivot())
-						task.wait()
-					until not client.Character:IsDescendantOf(workspace) or not client.Character:FindFirstChild('Humanoid') or client.Character.Humanoid.Health >= ((Options.HealPercentage.Value / 100 * client.Character.Humanoid.MaxHealth) - 1) or ((not Toggles.AutoHeal) or (not Toggles.AutoHeal.Value))
+					if workspace:FindFirstChild('Map') and workspace.Map:FindFirstChild('HealPart', true) then
+						repeat
+							client.Character:PivotTo(workspace.Map:FindFirstChild('HealPart', true):GetPivot() * CFrame.new(random:NextNumber(-3, 3), random:NextNumber(-1, 1), random:NextNumber(-3, 3)))
+							task.wait()
+						until not client.Character:IsDescendantOf(workspace) or not client.Character:FindFirstChild('Humanoid') or client.Character.Humanoid.Health >= ((Options.HealPercentage.Value / 100 * client.Character.Humanoid.MaxHealth) - 1) or ((not Toggles.AutoHeal) or (not Toggles.AutoHeal.Value))
+					else
+						repeat
+							client.Character:PivotTo(CFrame.new(941, 1, 1089) * CFrame.new(random:NextNumber(-3, 3), random:NextNumber(-1, 1), random:NextNumber(-3, 3)))
+							task.wait()
+						until not client.Character:IsDescendantOf(workspace) or not client.Character:FindFirstChild('Humanoid') or client.Character.Humanoid.Health >= ((Options.HealPercentage.Value / 100 * client.Character.Humanoid.MaxHealth) - 1) or ((not Toggles.AutoHeal) or (not Toggles.AutoHeal.Value))
+					end
 					shared.healing = false
 					client.Character:PivotTo(oldPivot)
 				end
