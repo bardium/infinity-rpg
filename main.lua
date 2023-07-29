@@ -19,6 +19,7 @@ local metadata = loadstring(game:HttpGet('https://raw.githubusercontent.com/bard
 local httpService = game:GetService('HttpService')
 
 local runService = game:GetService('RunService')
+local virtualInputManager = game:GetService("VirtualInputManager")
 local repStorage = game:GetService('ReplicatedStorage')
 
 do
@@ -92,14 +93,22 @@ do
 							end
 						end
 					end
-					if closestMob:IsDescendantOf(workspace) and closestMob:FindFirstChildOfClass('Humanoid') then
-						if repStorage.GameRemotes:FindFirstChild('Damage'..tostring(Options.DamageType.Value)) and repStorage.GameRemotes:FindFirstChild('Damage'..tostring(Options.DamageType.Value)):IsA('RemoteFunction') then
-							if client.Character:FindFirstChildWhichIsA('Tool') then
-								client.Character:FindFirstChildWhichIsA('Tool'):Activate()
+					local weaponType = 'Melee'
+					if not client.Character:FindFirstChildWhichIsA('Tool') or not client.Character:FindFirstChildWhichIsA('Tool'):FindFirstChild('ToolConfig') then
+						virtualInputManager:SendKeyEvent(true, Enum.KeyCode.One, false, nil)
+						virtualInputManager:SendKeyEvent(false, Enum.KeyCode.One, false, nil)
+					else
+						weaponType = tostring(require(client.Character:FindFirstChildWhichIsA('Tool'):FindFirstChild('ToolConfig')).Type)
+						if weaponType == 'Ranged' then
+							UI:Notify('Ranged weapons are currently not supported with this script.', 30)
+							Toggles.KillAura:SetValue(false)
+						end
+						if closestMob:IsDescendantOf(workspace) and closestMob:FindFirstChildOfClass('Humanoid') then
+							if repStorage.GameRemotes:FindFirstChild('Damage'..weaponType) and repStorage.GameRemotes:FindFirstChild('Damage'..weaponType):IsA('RemoteFunction') then
+								task.spawn(function()
+									repStorage.GameRemotes:FindFirstChild('Damage'..weaponType):InvokeServer(closestMob)
+								end)
 							end
-							task.spawn(function()
-								repStorage.GameRemotes:FindFirstChild('Damage'..tostring(Options.DamageType.Value)):InvokeServer(closestMob)
-							end)
 						end
 					end
 				end
@@ -168,13 +177,17 @@ Groups.Main = Tabs.Main:AddLeftGroupbox('Main')
 Groups.Main:AddToggle('AutoHeal', { Text = 'Auto heal', Default = true })
 Groups.Main:AddSlider('HealPercentage', { Text = 'Heal percentage', Min = 0, Max = 100, Default = 50, Suffix = '%', Rounding = 0, Compact = true, Tooltip = 'Minimum percentage of hp to start healing at' })
 Groups.Main:AddToggle('KillAura', { Text = 'Kill aura' })
-Groups.Main:AddDropdown('DamageType', {
-	Text = 'Damage type', 
-	Compact = true, 
-	Default = 'Melee', 
-	Values = { 'Melee', 'Ranged', 'Magic', 'Throwing' }, 
-	Tooltip = 'Select the type of weapon you are using.', 
-})
+Toggles.KillAura:OnChanged(function()
+	if Toggles.KillAura.Value == true then
+		if client.Character:FindFirstChildWhichIsA('Tool') and client.Character:FindFirstChildWhichIsA('Tool'):FindFirstChild('ToolConfig') then
+			local weaponType = 'Unknown'
+			weaponType = tostring(require(client.Character:FindFirstChildWhichIsA('Tool'):FindFirstChild('ToolConfig')).Type)
+
+			UI:Notify('Kill aura may not work on ' .. tostring(weaponType) .. 'weapons. Kill Aura has only been tested on melee.', 15)
+		end
+	end
+end)
+
 Groups.Main:AddToggle('TeleportToMobs', { Text = 'Teleport to mobs' })
 Groups.Main:AddSlider('YOffset', { Text = 'Y Offset', Min = -25, Max = 25, Default = -13, Suffix = ' studs', Rounding = 1, Compact = true, Tooltip = 'Y Offset when teleporting to mobs' })
 
