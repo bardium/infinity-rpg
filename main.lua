@@ -257,7 +257,12 @@ if workspace:FindFirstChild('Mobs') then
 		AllowNull = true,
 		Compact = false,
 		Values = GetMobsString(),
-		Default = 'Closest mob'
+		Default = 'Closest mob',
+		Callback = function(Mob)
+			if workspace.Mobs:FindFirstChild(Mob) and workspace.Mobs[Mob]:FindFirstChild('LevelKillReq') and workspace.Mobs[Mob].LevelKillReq.Value > repStorage.PlayerData[tostring(client.UserId)].Level.Value then
+				UI:Notify(string.format('The mob will not take damage as your level is too low to damage it. \n Your level: %s \n Mob level: %s', tostring(repStorage.PlayerData[tostring(client.UserId)].Level.Value), tostring(workspace.Mobs[Mob].LevelKillReq.Value)), 3)
+			end
+		end
 	})
 	Groups.Main:AddButton('Update Target mobs', function()
 		local TargetMobs = GetMobsString();
