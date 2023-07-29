@@ -183,7 +183,9 @@ Toggles.KillAura:OnChanged(function()
 			local weaponType = 'Unknown'
 			weaponType = tostring(require(client.Character:FindFirstChildWhichIsA('Tool'):FindFirstChild('ToolConfig')).Type)
 
-			UI:Notify('Kill aura may not work on ' .. tostring(weaponType) .. 'weapons. Kill Aura has only been tested on melee.', 15)
+			if weaponType ~= 'Melee' then
+				UI:Notify('Kill aura may not work on ' .. tostring(weaponType) .. ' weapons. Kill Aura has only been tested on melee.', 15)
+			end
 		end
 	end
 end)
