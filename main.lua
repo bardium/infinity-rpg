@@ -103,11 +103,11 @@ do
 						end
 					end
 					local weaponType = 'Melee'
-					if not client.Character:FindFirstChildWhichIsA('Tool') or not client.Character:FindFirstChildWhichIsA('Tool'):FindFirstChild('ToolConfig') then
+					if not client.Character:FindFirstChildOfClass('Tool') or not client.Character:FindFirstChildOfClass('Tool'):FindFirstChild('ToolConfig') then
 						virtualInputManager:SendKeyEvent(true, Enum.KeyCode.One, false, nil)
 						virtualInputManager:SendKeyEvent(false, Enum.KeyCode.One, false, nil)
 					else
-						weaponType = tostring(require(client.Character:FindFirstChildWhichIsA('Tool'):FindFirstChild('ToolConfig')).Type)
+						weaponType = tostring(require(client.Character:FindFirstChildOfClass('Tool'):FindFirstChild('ToolConfig')).Type)
 						if weaponType == 'Ranged' then
 							UI:Notify('Ranged weapons are currently not supported with this script.', 30)
 							Toggles.KillAura:SetValue(false)
@@ -136,21 +136,25 @@ do
 			if ((Toggles.TeleportToMobs) and (Toggles.TeleportToMobs.Value)) then
 				if client.Character:IsDescendantOf(workspace) and workspace:FindFirstChild('Mobs') then
 					local closestMob = workspace.Mobs:FindFirstChildOfClass('Model')
-					for _, v in ipairs(workspace.Mobs:GetChildren()) do
-						if v:IsA('Folder') then
-							for _, mob in ipairs(v:GetChildren()) do
-								if mob:FindFirstChild('LevelKillReq') and mob.LevelKillReq.Value <= repStorage.PlayerData[tostring(client.UserId)].Level.Value and (client.Character:GetPivot().Position - mob:GetPivot().Position).Magnitude < (closestMob:GetPivot().Position - client.Character:GetPivot().Position).Magnitude and mob:FindFirstChildOfClass('Humanoid') then
-									closestMob = mob
+					if (Options.TargetMobs.Value) == 'Closest mob' then -- or not workspace.Mobs:FindFirstChild(tostring(Options.TargetMob.Value))
+						for _, v in ipairs(workspace.Mobs:GetChildren()) do
+							if v:IsA('Folder') then
+								for _, mob in ipairs(v:GetChildren()) do
+									if mob:FindFirstChild('LevelKillReq') and mob.LevelKillReq.Value <= repStorage.PlayerData[tostring(client.UserId)].Level.Value and (client.Character:GetPivot().Position - mob:GetPivot().Position).Magnitude < (closestMob:GetPivot().Position - client.Character:GetPivot().Position).Magnitude and mob:FindFirstChildOfClass('Humanoid') then
+										closestMob = mob
+									end
+								end
+							end
+							if v:FindFirstChild('LevelKillReq') and v.LevelKillReq.Value <= repStorage.PlayerData[tostring(client.UserId)].Level.Value and v:FindFirstChildOfClass('Humanoid') and v:IsA('Model') and v:FindFirstChildOfClass('Humanoid') then
+								if (client.Character:GetPivot().Position - v:GetPivot().Position).Magnitude < (closestMob:GetPivot().Position - client.Character:GetPivot().Position).Magnitude then
+									closestMob = v
 								end
 							end
 						end
-						if v:FindFirstChild('LevelKillReq') and v.LevelKillReq.Value <= repStorage.PlayerData[tostring(client.UserId)].Level.Value and v:FindFirstChildOfClass('Humanoid') and v:IsA('Model') and v:FindFirstChildOfClass('Humanoid') then
-							if (client.Character:GetPivot().Position - v:GetPivot().Position).Magnitude < (closestMob:GetPivot().Position - client.Character:GetPivot().Position).Magnitude then
-								closestMob = v
-							end
-						end
+					else
+						closestMob = workspace.Mobs:FindFirstChild(tostring(Options.TargetMobs.Value))
 					end
-					if closestMob:IsDescendantOf(workspace) and closestMob:FindFirstChildOfClass('Humanoid') and typeof(closestMob:GetPivot()) == 'CFrame' and typeof(closestMob:GetExtentsSize()) == 'Vector3' then
+					if closestMob:IsDescendantOf(workspace.Mobs) and closestMob:FindFirstChildOfClass('Humanoid') and typeof(closestMob:GetPivot()) == 'CFrame' and typeof(closestMob:GetExtentsSize()) == 'Vector3' then
 						if not shared.healing then
 							client.Character:PivotTo(closestMob:GetPivot() * CFrame.new(0, closestMob:GetExtentsSize().Y + (Options.YOffset.Value), 0))
 						end
@@ -188,9 +192,9 @@ Groups.Main:AddSlider('HealPercentage', { Text = 'Heal percentage', Min = 0, Max
 Groups.Main:AddToggle('KillAura', { Text = 'Kill aura' })
 Toggles.KillAura:OnChanged(function()
 	if Toggles.KillAura.Value == true then
-		if client.Character:FindFirstChildWhichIsA('Tool') and client.Character:FindFirstChildWhichIsA('Tool'):FindFirstChild('ToolConfig') then
+		if client.Character:FindFirstChildOfClass('Tool') and client.Character:FindFirstChildOfClass('Tool'):FindFirstChild('ToolConfig') then
 			local weaponType = 'Unknown'
-			weaponType = tostring(require(client.Character:FindFirstChildWhichIsA('Tool'):FindFirstChild('ToolConfig')).Type)
+			weaponType = tostring(require(client.Character:FindFirstChildOfClass('Tool'):FindFirstChild('ToolConfig')).Type)
 
 			if weaponType ~= 'Melee' then
 				UI:Notify('Kill aura may not work on ' .. tostring(weaponType) .. ' weapons. Kill Aura has only been tested on melee.', 15)
@@ -198,8 +202,85 @@ Toggles.KillAura:OnChanged(function()
 		end
 	end
 end)
+Groups.Main:AddToggle('TeleportToMobs', { Text = 'Teleport to mob' })
+if workspace:FindFirstChild('Mobs') then
+	local function GetMobsString()
+		local MobList = { 'Closest mob' }
 
-Groups.Main:AddToggle('TeleportToMobs', { Text = 'Teleport to mobs' })
+		for _, v in ipairs(workspace.Mobs:GetChildren()) do
+			if v:IsA('Folder') then
+				for _, mob in ipairs(v:GetChildren()) do
+					if v:IsA('Model') and v:FindFirstChildOfClass('Humanoid') then
+						table.insert(MobList, v)
+					end
+				end
+			elseif v:IsA('Model') and v:FindFirstChildOfClass('Humanoid') then
+				table.insert(MobList, v)
+			end
+		end
+
+		local uniqueMobs = {}
+		local finalMobList = {}
+	
+		for _, v in ipairs(MobList) do
+			local mobString = tostring(v)
+			if not uniqueMobs[mobString] then
+				table.insert(finalMobList, v)
+				uniqueMobs[mobString] = true
+			end
+		end
+
+		MobList = finalMobList
+
+		table.sort(MobList, function(str1, str2)
+			if str1 == 'Closest mob' then
+				return str1 > tostring(str2)
+			elseif str2 == 'Closest mob' then
+				return str2 > tostring(str1)
+			else
+				if typeof(str1) == 'Instance' and typeof(str2) == 'Instance' and str1:FindFirstChild('LevelKillReq') and str2:FindFirstChild('LevelKillReq') then
+					return str1:FindFirstChild('LevelKillReq').Value < str2:FindFirstChild('LevelKillReq').Value
+				else
+					return str1 > str2
+				end
+			end
+		end)
+
+		for i, v in ipairs(MobList) do
+			MobList[i] = tostring(v)
+		end
+	
+		return MobList
+	end
+	Groups.Main:AddDropdown('TargetMobs', {
+		Text = 'Target mob',
+		AllowNull = true,
+		Compact = false,
+		Values = GetMobsString(),
+		Default = 'Closest mob'
+	})
+	Groups.Main:AddButton('Update Target mobs', function()
+		local TargetMobs = GetMobsString();
+
+		Options.TargetMobs:SetValues(TargetMobs);
+	end)
+	--[[
+	Auto update target mobs:
+
+	local function OnMobsChanged()
+		local MobList = GetMobsString();
+
+		Options.TargetMob:SetValues(MobList);
+	end;
+
+	workspace.Mobs.ChildAdded:Connect(OnMobsChanged);
+	workspace.Mobs.ChildRemoved:Connect(OnMobsChanged);
+	for _, v in ipairs(workspace.Mobs:GetChildren()) do
+		v.ChildAdded:Connect(OnMobsChanged);
+		v.ChildRemoved:Connect(OnMobsChanged);
+	end
+	]]
+end
 Groups.Main:AddSlider('YOffset', { Text = 'Y Offset', Min = -25, Max = 25, Default = -13, Suffix = ' studs', Rounding = 1, Compact = true, Tooltip = 'Y Offset when teleporting to mobs' })
 
 Groups.Credits = Tabs.UISettings:AddRightGroupbox('Credits')
