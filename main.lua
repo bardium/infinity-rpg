@@ -135,8 +135,9 @@ do
 			task.wait()
 			if ((Toggles.TeleportToMobs) and (Toggles.TeleportToMobs.Value)) then
 				if client.Character:IsDescendantOf(workspace) and workspace:FindFirstChild('Mobs') then
-					local closestMob = workspace.Mobs:FindFirstChildOfClass('Model')
+					local closestMob = nil
 					if (Options.TargetMobs.Value) == 'Closest mob' then -- or not workspace.Mobs:FindFirstChild(tostring(Options.TargetMob.Value))
+						closestMob = workspace.Mobs:FindFirstChildOfClass('Model')
 						for _, v in ipairs(workspace.Mobs:GetChildren()) do
 							if v:IsA('Folder') then
 								for _, mob in ipairs(v:GetChildren()) do
@@ -145,7 +146,7 @@ do
 									end
 								end
 							end
-							if v:FindFirstChild('LevelKillReq') and v.LevelKillReq.Value <= repStorage.PlayerData[tostring(client.UserId)].Level.Value and v:FindFirstChildOfClass('Humanoid') and v:IsA('Model') and v:FindFirstChildOfClass('Humanoid') and (client.Character:GetPivot().Position - v:GetPivot().Position).Magnitude < (closestMob:GetPivot().Position - client.Character:GetPivot().Position).Magnitude then
+							if v:FindFirstChild('LevelKillReq') and v.LevelKillReq.Value <= repStorage.PlayerData[tostring(client.UserId)].Level.Value and v:FindFirstChildOfClass('Humanoid') and (client.Character:GetPivot().Position - v:GetPivot().Position).Magnitude < (closestMob:GetPivot().Position - client.Character:GetPivot().Position).Magnitude then
 								closestMob = v
 							end
 						end
@@ -154,22 +155,35 @@ do
 						for _, v in ipairs(workspace.Mobs:GetChildren()) do
 							if v:IsA('Folder') then
 								for _, mob in ipairs(v:GetChildren()) do
-									if mob:FindFirstChild('LevelKillReq') and mob.LevelKillReq.Value <= repStorage.PlayerData[tostring(client.UserId)].Level.Value and mob.LevelKillReq.Value > highestLevel and mob:FindFirstChildOfClass('Humanoid') and closestMob:FindFirstChildWhichIsA('BasePart') then
-										highestLevel = mob.LevelKillReq.Value
-										closestMob = mob
+									if mob:FindFirstChild('LevelKillReq') and mob.LevelKillReq.Value <= repStorage.PlayerData[tostring(client.UserId)].Level.Value and mob:FindFirstChildOfClass('Humanoid') and mob:FindFirstChildWhichIsA('BasePart') then
+										if closestMob == nil then
+											closestMob = mob
+											highestLevel = mob.LevelKillReq.Value
+										else
+											if mob.LevelKillReq.Value > highestLevel then
+												highestLevel = mob.LevelKillReq.Value
+												closestMob = mob
+											end
+										end
 									end
 								end
 							end
-							if v:FindFirstChild('LevelKillReq') and v.LevelKillReq.Value <= repStorage.PlayerData[tostring(client.UserId)].Level.Value and v:FindFirstChildOfClass('Humanoid') and v:IsA('Model') and v:FindFirstChildOfClass('Humanoid') and v.LevelKillReq.Value > highestLevel and closestMob:FindFirstChildWhichIsA('BasePart') then
-								highestLevel = v.LevelKillReq.Value
-								closestMob = v
+							if v:FindFirstChild('LevelKillReq') and v.LevelKillReq.Value <= repStorage.PlayerData[tostring(client.UserId)].Level.Value and v:FindFirstChildOfClass('Humanoid') and v.LevelKillReq.Value > highestLevel and v:FindFirstChildWhichIsA('BasePart') then
+								if closestMob == nil then
+									closestMob = v
+									highestLevel = v.LevelKillReq.Value
+								else
+									if v.LevelKillReq.Value > highestLevel then
+										highestLevel = v.LevelKillReq.Value
+										closestMob = v
+									end
+								end
 							end
 						end
 					else
 						closestMob = workspace.Mobs:FindFirstChild(tostring(Options.TargetMobs.Value), true)
 					end
 					if closestMob ~= nil and closestMob:IsDescendantOf(workspace.Mobs) and closestMob:FindFirstChildOfClass('Humanoid') and typeof(closestMob:GetPivot()) == 'CFrame' and typeof(closestMob:GetExtentsSize()) == 'Vector3' and closestMob:FindFirstChildWhichIsA('BasePart') then
-						print(closestMob:GetFullName())
 						if not shared.healing then
 							client.Character:PivotTo(closestMob:GetPivot() * CFrame.new(0, closestMob:GetExtentsSize().Y + (Options.YOffset.Value), 0))
 						end
