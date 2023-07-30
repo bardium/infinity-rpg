@@ -145,16 +145,31 @@ do
 									end
 								end
 							end
-							if v:FindFirstChild('LevelKillReq') and v.LevelKillReq.Value <= repStorage.PlayerData[tostring(client.UserId)].Level.Value and v:FindFirstChildOfClass('Humanoid') and v:IsA('Model') and v:FindFirstChildOfClass('Humanoid') then
-								if (client.Character:GetPivot().Position - v:GetPivot().Position).Magnitude < (closestMob:GetPivot().Position - client.Character:GetPivot().Position).Magnitude then
-									closestMob = v
+							if v:FindFirstChild('LevelKillReq') and v.LevelKillReq.Value <= repStorage.PlayerData[tostring(client.UserId)].Level.Value and v:FindFirstChildOfClass('Humanoid') and v:IsA('Model') and v:FindFirstChildOfClass('Humanoid') and (client.Character:GetPivot().Position - v:GetPivot().Position).Magnitude < (closestMob:GetPivot().Position - client.Character:GetPivot().Position).Magnitude then
+								closestMob = v
+							end
+						end
+					elseif (Options.TargetMobs.Value) == 'Highest level possible mob' then
+						local highestLevel = -1
+						for _, v in ipairs(workspace.Mobs:GetChildren()) do
+							if v:IsA('Folder') then
+								for _, mob in ipairs(v:GetChildren()) do
+									if mob:FindFirstChild('LevelKillReq') and mob.LevelKillReq.Value <= repStorage.PlayerData[tostring(client.UserId)].Level.Value and mob.LevelKillReq.Value > highestLevel and mob:FindFirstChildOfClass('Humanoid') and closestMob:FindFirstChildWhichIsA('BasePart') then
+										highestLevel = mob.LevelKillReq.Value
+										closestMob = mob
+									end
 								end
+							end
+							if v:FindFirstChild('LevelKillReq') and v.LevelKillReq.Value <= repStorage.PlayerData[tostring(client.UserId)].Level.Value and v:FindFirstChildOfClass('Humanoid') and v:IsA('Model') and v:FindFirstChildOfClass('Humanoid') and v.LevelKillReq.Value > highestLevel and closestMob:FindFirstChildWhichIsA('BasePart') then
+								highestLevel = v.LevelKillReq.Value
+								closestMob = v
 							end
 						end
 					else
-						closestMob = workspace.Mobs:FindFirstChild(tostring(Options.TargetMobs.Value))
+						closestMob = workspace.Mobs:FindFirstChild(tostring(Options.TargetMobs.Value), true)
 					end
-					if closestMob:IsDescendantOf(workspace.Mobs) and closestMob:FindFirstChildOfClass('Humanoid') and typeof(closestMob:GetPivot()) == 'CFrame' and typeof(closestMob:GetExtentsSize()) == 'Vector3' then
+					if closestMob ~= nil and closestMob:IsDescendantOf(workspace.Mobs) and closestMob:FindFirstChildOfClass('Humanoid') and typeof(closestMob:GetPivot()) == 'CFrame' and typeof(closestMob:GetExtentsSize()) == 'Vector3' and closestMob:FindFirstChildWhichIsA('BasePart') then
+						print(closestMob:GetFullName())
 						if not shared.healing then
 							client.Character:PivotTo(closestMob:GetPivot() * CFrame.new(0, closestMob:GetExtentsSize().Y + (Options.YOffset.Value), 0))
 						end
@@ -205,16 +220,16 @@ end)
 Groups.Main:AddToggle('TeleportToMobs', { Text = 'Teleport to mob' })
 if workspace:FindFirstChild('Mobs') then
 	local function GetMobsString()
-		local MobList = { 'Closest mob' }
+		local MobList = {}
 
 		for _, v in ipairs(workspace.Mobs:GetChildren()) do
 			if v:IsA('Folder') then
 				for _, mob in ipairs(v:GetChildren()) do
-					if v:IsA('Model') and v:FindFirstChildOfClass('Humanoid') then
-						table.insert(MobList, v)
+					if mob:IsA('Model') and v:FindFirstChildOfClass('Humanoid') and mob:FindFirstChildWhichIsA('BasePart') then
+						table.insert(MobList, mob)
 					end
 				end
-			elseif v:IsA('Model') and v:FindFirstChildOfClass('Humanoid') then
+			elseif v:IsA('Model') and v:FindFirstChildOfClass('Humanoid') and v:FindFirstChildWhichIsA('BasePart') then
 				table.insert(MobList, v)
 			end
 		end
@@ -222,7 +237,7 @@ if workspace:FindFirstChild('Mobs') then
 		local uniqueMobs = {}
 		local finalMobList = {}
 	
-		for _, v in ipairs(MobList) do
+		for _, v in pairs(MobList) do
 			local mobString = tostring(v)
 			if not uniqueMobs[mobString] then
 				table.insert(finalMobList, v)
@@ -233,23 +248,24 @@ if workspace:FindFirstChild('Mobs') then
 		MobList = finalMobList
 
 		table.sort(MobList, function(str1, str2)
-			if str1 == 'Closest mob' then
-				return str1 > tostring(str2)
-			elseif str2 == 'Closest mob' then
-				return str2 > tostring(str1)
+			if typeof(str1) == 'Instance' and typeof(str2) == 'Instance' and str1:FindFirstChild('LevelKillReq') and str2:FindFirstChild('LevelKillReq') then
+				return str1:FindFirstChild('LevelKillReq').Value < str2:FindFirstChild('LevelKillReq').Value
 			else
-				if typeof(str1) == 'Instance' and typeof(str2) == 'Instance' and str1:FindFirstChild('LevelKillReq') and str2:FindFirstChild('LevelKillReq') then
-					return str1:FindFirstChild('LevelKillReq').Value < str2:FindFirstChild('LevelKillReq').Value
-				else
-					return str1 > str2
-				end
+				return tostring(str1) > tostring(str2)
 			end
 		end)
 
-		for i, v in ipairs(MobList) do
+		for i, v in pairs(MobList) do
 			MobList[i] = tostring(v)
 		end
-	
+		local newValues = {'Closest mob', 'Highest level possible mob'}
+
+		for i, v in pairs(MobList) do
+			newValues[#newValues + 1] = MobList[i]
+		end
+
+		MobList = newValues
+
 		return MobList
 	end
 	Groups.Main:AddDropdown('TargetMobs', {
@@ -259,12 +275,12 @@ if workspace:FindFirstChild('Mobs') then
 		Values = GetMobsString(),
 		Default = 'Closest mob',
 		Callback = function(Mob)
-			if workspace.Mobs:FindFirstChild(Mob) and workspace.Mobs[Mob]:FindFirstChild('LevelKillReq') and workspace.Mobs[Mob].LevelKillReq.Value > repStorage.PlayerData[tostring(client.UserId)].Level.Value then
+			if typeof(Mob) == 'Instance' and workspace.Mobs:FindFirstChild(tostring(Mob)) and workspace.Mobs[tostring(Mob)]:FindFirstChild('LevelKillReq') and workspace.Mobs[tostring(Mob)].LevelKillReq.Value > repStorage.PlayerData[tostring(client.UserId)].Level.Value then
 				UI:Notify(string.format('The mob will not take damage as your level is too low to damage it. \n Your level: %s \n Mob level: %s', tostring(repStorage.PlayerData[tostring(client.UserId)].Level.Value), tostring(workspace.Mobs[Mob].LevelKillReq.Value)), 3)
 			end
 		end
 	})
-	Groups.Main:AddButton('Update Target mobs', function()
+	Groups.Main:AddButton('Update target mobs', function()
 		local TargetMobs = GetMobsString();
 
 		Options.TargetMobs:SetValues(TargetMobs);
