@@ -19,7 +19,7 @@ local metadata = loadstring(game:HttpGet('https://raw.githubusercontent.com/bard
 local httpService = game:GetService('HttpService')
 local repStorage = game:GetService('ReplicatedStorage')
 
-local clientData, mobs
+local clientData, mobs, gameAmmunition
 local counter = 0
 
 while true do
@@ -40,14 +40,22 @@ while true do
 			end
 		end
 	end
+	
+	if typeof(gameAmmunition) ~= 'Instance' then
+		for _, obj in next, repStorage:GetChildren() do
+			if obj.Name == 'GameAmmunition' and obj:IsA('Folder') and obj:FindFirstChild('Arrows') and obj:FindFirstChild('Bullets') then 
+				gameAmmunition = obj
+			end
+		end
+	end
 
-    if (typeof(clientData) == 'Instance' and typeof(mobs) == 'Instance') then
+    if (typeof(clientData) == 'Instance' and typeof(mobs) == 'Instance' and typeof(gameAmmunition) == 'Instance') then
         break
     end
 
     counter = counter + 1
     if counter > 6 then
-        client:Kick(string.format('Failed to load game dependencies. Details: %s, %s', typeof(clientData), typeof(mobs)))
+        client:Kick(string.format('Failed to load game dependencies. Details: %s, %s, %s', typeof(clientData), typeof(mobs), typeof(gameAmmunition)))
     end
     task.wait(1)
 end
@@ -121,15 +129,15 @@ do
 			if ((Toggles.KillAura) and (Toggles.KillAura.Value)) then
 				if client.Character:IsDescendantOf(workspace) and workspace:FindFirstChild('Mobs') then
 					local closestMob = mobs:FindFirstChildOfClass('Model')
-					for _, v in ipairs(mobs:GetChildren()) do
+					for _, v in next, mobs:GetChildren() do
 						if v:IsA('Folder') then
-							for _, mob in ipairs(v:GetChildren()) do
-								if mob:FindFirstChild('LevelKillReq') and mob.LevelKillReq.Value <= repStorage.PlayerData[tostring(client.UserId)].Level.Value and (client.Character:GetPivot().Position - mob:GetPivot().Position).Magnitude < (closestMob:GetPivot().Position - client.Character:GetPivot().Position).Magnitude and mob:FindFirstChildOfClass('Humanoid') then
+							for _, mob in next, v:GetChildren() do
+								if mob:FindFirstChild('LevelKillReq') and mob.LevelKillReq.Value <= clientData.Level.Value and (client.Character:GetPivot().Position - mob:GetPivot().Position).Magnitude < (closestMob:GetPivot().Position - client.Character:GetPivot().Position).Magnitude and mob:FindFirstChildOfClass('Humanoid') then
 									closestMob = mob
 								end
 							end
 						end
-						if v:FindFirstChild('LevelKillReq') and v.LevelKillReq.Value <= repStorage.PlayerData[tostring(client.UserId)].Level.Value and v:FindFirstChildOfClass('Humanoid') and v:IsA('Model') then
+						if v:FindFirstChild('LevelKillReq') and v.LevelKillReq.Value <= clientData.Level.Value and v:FindFirstChildOfClass('Humanoid') and v:IsA('Model') then
 							if (client.Character:GetPivot().Position - v:GetPivot().Position).Magnitude < (closestMob:GetPivot().Position - client.Character:GetPivot().Position).Magnitude then
 								closestMob = v
 							end
@@ -139,16 +147,28 @@ do
 					if not client.Character:FindFirstChildOfClass('Tool') or not client.Character:FindFirstChildOfClass('Tool'):FindFirstChild('ToolConfig') then
 						virtualInputManager:SendKeyEvent(true, Enum.KeyCode.One, false, nil)
 						virtualInputManager:SendKeyEvent(false, Enum.KeyCode.One, false, nil)
+						repeat task.wait() until (client.Character:FindFirstChildOfClass('Tool') and client.Character:FindFirstChildOfClass('Tool'):FindFirstChild('ToolConfig')) or ((not Toggles.KillAura) or (not Toggles.KillAura.Value))
 					else
 						weaponType = tostring(require(client.Character:FindFirstChildOfClass('Tool'):FindFirstChild('ToolConfig')).Type)
+						local args = nil
 						if weaponType == 'Ranged' then
-							UI:Notify('Ranged weapons are currently not supported with this script.', 30)
-							Toggles.KillAura:SetValue(false)
+							local ammoTypes = require(client.Character:FindFirstChildOfClass('Tool'):FindFirstChild('ToolConfig')).AmmoType
+							for _, folder in next, gameAmmunition:GetChildren() do
+								for _, possibleAmmo in next, folder:GetChildren() do
+									if clientData.Ammunition:FindFirstChild(possibleAmmo.Name) and possibleAmmo:FindFirstChild('AmmoConfig') and table.find(ammoTypes, require(possibleAmmo.AmmoConfig).Type) then
+										args = possibleAmmo.Name
+									end
+								end
+							end
+							if args == nil then
+								UI:Notify('You do not have the right ammo for this weapon. Please buy the correct ammo or use a different weapon.', 30)
+								Toggles.KillAura:SetValue(false)
+							end
 						end
 						if closestMob:IsDescendantOf(workspace) and closestMob:FindFirstChildOfClass('Humanoid') then
 							if repStorage.GameRemotes:FindFirstChild('Damage'..weaponType) and repStorage.GameRemotes:FindFirstChild('Damage'..weaponType):IsA('RemoteFunction') then
 								task.spawn(function()
-									repStorage.GameRemotes:FindFirstChild('Damage'..weaponType):InvokeServer(closestMob)
+									repStorage.GameRemotes:FindFirstChild('Damage'..weaponType):InvokeServer(closestMob, args)
 								end)
 							end
 						end
@@ -171,43 +191,43 @@ do
 					local closestMob = nil
 					if (Options.TargetMobs.Value) == 'Closest mob' then -- or not mobs:FindFirstChild(tostring(Options.TargetMob.Value))
 						closestMob = mobs:FindFirstChildOfClass('Model')
-						for _, v in ipairs(mobs:GetChildren()) do
+						for _, v in next, mobs:GetChildren() do
 							if v:IsA('Folder') then
-								for _, mob in ipairs(v:GetChildren()) do
-									if mob:FindFirstChild('LevelKillReq') and mob.LevelKillReq.Value <= repStorage.PlayerData[tostring(client.UserId)].Level.Value and (client.Character:GetPivot().Position - mob:GetPivot().Position).Magnitude < (closestMob:GetPivot().Position - client.Character:GetPivot().Position).Magnitude and mob:FindFirstChildOfClass('Humanoid') then
+								for _, mob in next, v:GetChildren() do
+									if mob:FindFirstChild('LevelKillReq') and mob.LevelKillReq.Value <= clientData.Level.Value and (client.Character:GetPivot().Position - mob:GetPivot().Position).Magnitude < (closestMob:GetPivot().Position - client.Character:GetPivot().Position).Magnitude and mob:FindFirstChildOfClass('Humanoid') then
 										closestMob = mob
 									end
 								end
 							end
-							if v:FindFirstChild('LevelKillReq') and v.LevelKillReq.Value <= repStorage.PlayerData[tostring(client.UserId)].Level.Value and v:FindFirstChildOfClass('Humanoid') and (client.Character:GetPivot().Position - v:GetPivot().Position).Magnitude < (closestMob:GetPivot().Position - client.Character:GetPivot().Position).Magnitude then
+							if v:FindFirstChild('LevelKillReq') and v.LevelKillReq.Value <= clientData.Level.Value and v:FindFirstChildOfClass('Humanoid') and (client.Character:GetPivot().Position - v:GetPivot().Position).Magnitude < (closestMob:GetPivot().Position - client.Character:GetPivot().Position).Magnitude then
 								closestMob = v
 							end
 						end
 					elseif (Options.TargetMobs.Value) == 'Highest level possible mob' then
 						local highestLevel = -1
-						for _, v in ipairs(mobs:GetChildren()) do
+						for _, v in next, mobs:GetChildren() do
 							if v:IsA('Folder') then
-								for _, mob in ipairs(v:GetChildren()) do
-									if mob:FindFirstChild('LevelKillReq') and mob.LevelKillReq.Value <= repStorage.PlayerData[tostring(client.UserId)].Level.Value and mob:FindFirstChildOfClass('Humanoid') and mob:FindFirstChildWhichIsA('BasePart') then
+								for _, mob in next, v:GetChildren() do
+									if mob:FindFirstChild('LevelKillReq') and mob.LevelKillReq.Value <= clientData.Level.Value and mob:FindFirstChildOfClass('Humanoid') and mob:FindFirstChildWhichIsA('BasePart') and mob:FindFirstChild('MobConfig') and mob.MobConfig:IsA('ModuleScript') and type(require(mob.MobConfig)) == 'table' and type(require(mob.MobConfig).MobLevel) == 'number' then
 										if closestMob == nil then
 											closestMob = mob
-											highestLevel = mob.LevelKillReq.Value
+											highestLevel = require(mob.MobConfig).MobLevel
 										else
-											if mob.LevelKillReq.Value > highestLevel then
-												highestLevel = mob.LevelKillReq.Value
+											if require(mob.MobConfig).MobLevel > highestLevel then
+												highestLevel = require(mob.MobConfig).MobLevel
 												closestMob = mob
 											end
 										end
 									end
 								end
 							end
-							if v:FindFirstChild('LevelKillReq') and v.LevelKillReq.Value <= repStorage.PlayerData[tostring(client.UserId)].Level.Value and v:FindFirstChildOfClass('Humanoid') and v.LevelKillReq.Value > highestLevel and v:FindFirstChildWhichIsA('BasePart') then
+							if v:FindFirstChild('LevelKillReq') and v.LevelKillReq.Value <= clientData.Level.Value and v:FindFirstChildOfClass('Humanoid') and v:FindFirstChildWhichIsA('BasePart') and v:FindFirstChild('MobConfig') and v.MobConfig:IsA('ModuleScript') and type(require(v.MobConfig)) == 'table' and type(require(v.MobConfig).MobLevel) == 'number' then
 								if closestMob == nil then
 									closestMob = v
-									highestLevel = v.LevelKillReq.Value
+									highestLevel = require(v.MobConfig).MobLevel
 								else
-									if v.LevelKillReq.Value > highestLevel then
-										highestLevel = v.LevelKillReq.Value
+									if require(v.MobConfig).MobLevel > highestLevel then
+										highestLevel = require(v.MobConfig).MobLevel
 										closestMob = v
 									end
 								end
@@ -261,8 +281,11 @@ Toggles.KillAura:OnChanged(function()
 			local weaponType = 'Unknown'
 			weaponType = tostring(require(client.Character:FindFirstChildOfClass('Tool'):FindFirstChild('ToolConfig')).Type)
 
-			if weaponType ~= 'Melee' then
-				UI:Notify('Kill aura may not work on ' .. tostring(weaponType) .. ' weapons. Kill Aura has only been tested on melee.', 15)
+			if weaponType ~= 'Melee' and weaponType ~= 'Ranged' then
+				UI:Notify('Kill aura may not work on ' .. tostring(weaponType) .. ' weapons. Kill Aura has only been tested on melee and ranged.', 15)
+			end
+			if weaponType == 'Ranged' then
+				UI:Notify('Make sure you have enough ammunition for the type of ranged weapon you are going to use.', 15)
 			end
 		end
 	end
@@ -271,9 +294,9 @@ Groups.Main:AddToggle('TeleportToMobs', { Text = 'Teleport to mob' })
 local function GetMobsString()
 	local MobList = {}
 
-	for _, v in ipairs(mobs:GetChildren()) do
+	for _, v in next, mobs:GetChildren() do
 		if v:IsA("Folder") then
-			for _, mob in ipairs(v:GetChildren()) do
+			for _, mob in next, v:GetChildren() do
 				if
 					mob:IsA("Model")
 					and v:FindFirstChildOfClass("Humanoid")
@@ -290,7 +313,7 @@ local function GetMobsString()
 	local uniqueMobs = {}
 	local finalMobList = {}
 
-	for _, v in pairs(MobList) do
+	for _, v in next, MobList do
 		local mobString = tostring(v)
 		if not uniqueMobs[mobString] then
 			table.insert(finalMobList, v)
@@ -313,12 +336,12 @@ local function GetMobsString()
 		end
 	end)
 
-	for i, v in pairs(MobList) do
+	for i, v in next, MobList do
 		MobList[i] = tostring(v)
 	end
 	local newValues = { "Closest mob", "Highest level possible mob" }
 
-	for i, v in pairs(MobList) do
+	for i, v in next, MobList do
 		newValues[#newValues + 1] = MobList[i]
 	end
 
@@ -334,16 +357,12 @@ Groups.Main:AddDropdown("TargetMobs", {
 	Values = GetMobsString(),
 	Default = "Closest mob",
 	Callback = function(Mob)
-		if
-			mobs:FindFirstChild(tostring(Mob), true)
-			and mobs:FindFirstChild(tostring(Mob), true):FindFirstChild("LevelKillReq")
-			and mobs:FindFirstChild(tostring(Mob), true).LevelKillReq.Value
-				> repStorage.PlayerData[tostring(client.UserId)].Level.Value
+		if mobs:FindFirstChild(tostring(Mob), true) and mobs:FindFirstChild(tostring(Mob), true):FindFirstChild("LevelKillReq") and mobs:FindFirstChild(tostring(Mob), true).LevelKillReq.Value > clientData.Level.Value
 		then
 			UI:Notify(
 				string.format(
 					"The mob will not take damage as your level is too low to damage it. \n Your level: %s \n Mob level: %s",
-					tostring(repStorage.PlayerData[tostring(client.UserId)].Level.Value),
+					tostring(clientData.Level.Value),
 					tostring(mobs:FindFirstChild(tostring(Mob), true).LevelKillReq.Value)
 				),
 				3
@@ -367,7 +386,7 @@ end;
 
 mobs.ChildAdded:Connect(OnMobsChanged);
 mobs.ChildRemoved:Connect(OnMobsChanged);
-for _, v in ipairs(mobs:GetChildren()) do
+for _, v in next, mobs:GetChildren() do
 	v.ChildAdded:Connect(OnMobsChanged);
 	v.ChildRemoved:Connect(OnMobsChanged);
 end
