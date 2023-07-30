@@ -17,10 +17,43 @@ local themeManager = loadstring(game:HttpGet('https://raw.githubusercontent.com/
 
 local metadata = loadstring(game:HttpGet('https://raw.githubusercontent.com/bardium/infinity-rpg/main/metadata.lua'))()
 local httpService = game:GetService('HttpService')
+local repStorage = game:GetService('ReplicatedStorage')
+
+local clientData, mobs
+local counter = 0
+
+while true do
+	if typeof(mobs) ~= 'Instance' then
+		for _, obj in next, workspace:GetChildren() do
+			if obj.Name == 'Mobs' and obj:IsA('Folder') then 
+				mobs = obj
+			end
+		end
+	end
+
+	if typeof(clientData) ~= 'Instance' then
+		for _, obj in next, repStorage:GetChildren() do
+			if obj.Name == 'PlayerData' and obj:IsA('Configuration') then 
+				if obj:FindFirstChild(tostring(client.UserId)) then
+					clientData = obj:FindFirstChild(tostring(client.UserId))
+				end
+			end
+		end
+	end
+
+    if (typeof(clientData) == 'Instance' and typeof(mobs) == 'Instance') then
+        break
+    end
+
+    counter = counter + 1
+    if counter > 6 then
+        client:Kick(string.format('Failed to load game dependencies. Details: %s, %s', typeof(clientData), typeof(mobs)))
+    end
+    task.wait(1)
+end
 
 local runService = game:GetService('RunService')
 local virtualInputManager = game:GetService("VirtualInputManager")
-local repStorage = game:GetService('ReplicatedStorage')
 
 local random = Random.new()
 
@@ -87,8 +120,8 @@ do
 			task.wait()
 			if ((Toggles.KillAura) and (Toggles.KillAura.Value)) then
 				if client.Character:IsDescendantOf(workspace) and workspace:FindFirstChild('Mobs') then
-					local closestMob = workspace.Mobs:FindFirstChildOfClass('Model')
-					for _, v in ipairs(workspace.Mobs:GetChildren()) do
+					local closestMob = mobs:FindFirstChildOfClass('Model')
+					for _, v in ipairs(mobs:GetChildren()) do
 						if v:IsA('Folder') then
 							for _, mob in ipairs(v:GetChildren()) do
 								if mob:FindFirstChild('LevelKillReq') and mob.LevelKillReq.Value <= repStorage.PlayerData[tostring(client.UserId)].Level.Value and (client.Character:GetPivot().Position - mob:GetPivot().Position).Magnitude < (closestMob:GetPivot().Position - client.Character:GetPivot().Position).Magnitude and mob:FindFirstChildOfClass('Humanoid') then
@@ -134,11 +167,11 @@ do
 		while true do
 			task.wait()
 			if ((Toggles.TeleportToMobs) and (Toggles.TeleportToMobs.Value)) then
-				if client.Character:IsDescendantOf(workspace) and workspace:FindFirstChild('Mobs') then
+				if client.Character:IsDescendantOf(workspace) then
 					local closestMob = nil
-					if (Options.TargetMobs.Value) == 'Closest mob' then -- or not workspace.Mobs:FindFirstChild(tostring(Options.TargetMob.Value))
-						closestMob = workspace.Mobs:FindFirstChildOfClass('Model')
-						for _, v in ipairs(workspace.Mobs:GetChildren()) do
+					if (Options.TargetMobs.Value) == 'Closest mob' then -- or not mobs:FindFirstChild(tostring(Options.TargetMob.Value))
+						closestMob = mobs:FindFirstChildOfClass('Model')
+						for _, v in ipairs(mobs:GetChildren()) do
 							if v:IsA('Folder') then
 								for _, mob in ipairs(v:GetChildren()) do
 									if mob:FindFirstChild('LevelKillReq') and mob.LevelKillReq.Value <= repStorage.PlayerData[tostring(client.UserId)].Level.Value and (client.Character:GetPivot().Position - mob:GetPivot().Position).Magnitude < (closestMob:GetPivot().Position - client.Character:GetPivot().Position).Magnitude and mob:FindFirstChildOfClass('Humanoid') then
@@ -152,7 +185,7 @@ do
 						end
 					elseif (Options.TargetMobs.Value) == 'Highest level possible mob' then
 						local highestLevel = -1
-						for _, v in ipairs(workspace.Mobs:GetChildren()) do
+						for _, v in ipairs(mobs:GetChildren()) do
 							if v:IsA('Folder') then
 								for _, mob in ipairs(v:GetChildren()) do
 									if mob:FindFirstChild('LevelKillReq') and mob.LevelKillReq.Value <= repStorage.PlayerData[tostring(client.UserId)].Level.Value and mob:FindFirstChildOfClass('Humanoid') and mob:FindFirstChildWhichIsA('BasePart') then
@@ -181,11 +214,14 @@ do
 							end
 						end
 					else
-						closestMob = workspace.Mobs:FindFirstChild(tostring(Options.TargetMobs.Value), true)
+						closestMob = mobs:FindFirstChild(tostring(Options.TargetMobs.Value), true)
 					end
-					if closestMob ~= nil and closestMob:IsDescendantOf(workspace.Mobs) and closestMob:FindFirstChildOfClass('Humanoid') and typeof(closestMob:GetPivot()) == 'CFrame' and typeof(closestMob:GetExtentsSize()) == 'Vector3' and closestMob:FindFirstChildWhichIsA('BasePart') then
+					if closestMob ~= nil and closestMob:IsDescendantOf(mobs) and closestMob:FindFirstChildOfClass('Humanoid') and typeof(closestMob:GetPivot()) == 'CFrame' and typeof(closestMob:GetExtentsSize()) == 'Vector3' and closestMob:FindFirstChildWhichIsA('BasePart') then
 						if not shared.healing then
-							client.Character:PivotTo(closestMob:GetPivot() * CFrame.new(0, closestMob:GetExtentsSize().Y + (Options.YOffset.Value), 0))
+							--local size = closestMob:GetExtentsSize()
+							--local offset = Vector3.new(size.X / 2, size.Y / 2, size.Z / 2)
+							local offset = Vector3.new(Options.XOffset.Value, Options.YOffset.Value, Options.ZOffset.Value)
+							client.Character:PivotTo(CFrame.new(closestMob:GetPivot().Position + offset))
 						end
 					end
 				end
@@ -232,91 +268,114 @@ Toggles.KillAura:OnChanged(function()
 	end
 end)
 Groups.Main:AddToggle('TeleportToMobs', { Text = 'Teleport to mob' })
-if workspace:FindFirstChild('Mobs') then
-	local function GetMobsString()
-		local MobList = {}
+local function GetMobsString()
+	local MobList = {}
 
-		for _, v in ipairs(workspace.Mobs:GetChildren()) do
-			if v:IsA('Folder') then
-				for _, mob in ipairs(v:GetChildren()) do
-					if mob:IsA('Model') and v:FindFirstChildOfClass('Humanoid') and mob:FindFirstChildWhichIsA('BasePart') then
-						table.insert(MobList, mob)
-					end
+	for _, v in ipairs(mobs:GetChildren()) do
+		if v:IsA("Folder") then
+			for _, mob in ipairs(v:GetChildren()) do
+				if
+					mob:IsA("Model")
+					and v:FindFirstChildOfClass("Humanoid")
+					and mob:FindFirstChildWhichIsA("BasePart")
+				then
+					table.insert(MobList, mob)
 				end
-			elseif v:IsA('Model') and v:FindFirstChildOfClass('Humanoid') and v:FindFirstChildWhichIsA('BasePart') then
-				table.insert(MobList, v)
 			end
+		elseif v:IsA("Model") and v:FindFirstChildOfClass("Humanoid") and v:FindFirstChildWhichIsA("BasePart") then
+			table.insert(MobList, v)
 		end
-
-		local uniqueMobs = {}
-		local finalMobList = {}
-	
-		for _, v in pairs(MobList) do
-			local mobString = tostring(v)
-			if not uniqueMobs[mobString] then
-				table.insert(finalMobList, v)
-				uniqueMobs[mobString] = true
-			end
-		end
-
-		MobList = finalMobList
-
-		table.sort(MobList, function(str1, str2)
-			if typeof(str1) == 'Instance' and typeof(str2) == 'Instance' and str1:FindFirstChild('LevelKillReq') and str2:FindFirstChild('LevelKillReq') then
-				return str1:FindFirstChild('LevelKillReq').Value < str2:FindFirstChild('LevelKillReq').Value
-			else
-				return tostring(str1) > tostring(str2)
-			end
-		end)
-
-		for i, v in pairs(MobList) do
-			MobList[i] = tostring(v)
-		end
-		local newValues = {'Closest mob', 'Highest level possible mob'}
-
-		for i, v in pairs(MobList) do
-			newValues[#newValues + 1] = MobList[i]
-		end
-
-		MobList = newValues
-
-		return MobList
 	end
-	Groups.Main:AddDropdown('TargetMobs', {
-		Text = 'Target mob',
-		AllowNull = true,
-		Compact = false,
-		Values = GetMobsString(),
-		Default = 'Closest mob',
-		Callback = function(Mob)
-			if typeof(Mob) == 'Instance' and workspace.Mobs:FindFirstChild(tostring(Mob)) and workspace.Mobs[tostring(Mob)]:FindFirstChild('LevelKillReq') and workspace.Mobs[tostring(Mob)].LevelKillReq.Value > repStorage.PlayerData[tostring(client.UserId)].Level.Value then
-				UI:Notify(string.format('The mob will not take damage as your level is too low to damage it. \n Your level: %s \n Mob level: %s', tostring(repStorage.PlayerData[tostring(client.UserId)].Level.Value), tostring(workspace.Mobs[Mob].LevelKillReq.Value)), 3)
-			end
-		end
-	})
-	Groups.Main:AddButton('Update target mobs', function()
-		local TargetMobs = GetMobsString();
 
-		Options.TargetMobs:SetValues(TargetMobs);
+	local uniqueMobs = {}
+	local finalMobList = {}
+
+	for _, v in pairs(MobList) do
+		local mobString = tostring(v)
+		if not uniqueMobs[mobString] then
+			table.insert(finalMobList, v)
+			uniqueMobs[mobString] = true
+		end
+	end
+
+	MobList = finalMobList
+
+	table.sort(MobList, function(str1, str2)
+		if
+			typeof(str1) == "Instance"
+			and typeof(str2) == "Instance"
+			and str1:FindFirstChild("LevelKillReq")
+			and str2:FindFirstChild("LevelKillReq")
+		then
+			return str1:FindFirstChild("LevelKillReq").Value < str2:FindFirstChild("LevelKillReq").Value
+		else
+			return tostring(str1) > tostring(str2)
+		end
 	end)
-	--[[
-	Auto update target mobs:
 
-	local function OnMobsChanged()
-		local MobList = GetMobsString();
-
-		Options.TargetMob:SetValues(MobList);
-	end;
-
-	workspace.Mobs.ChildAdded:Connect(OnMobsChanged);
-	workspace.Mobs.ChildRemoved:Connect(OnMobsChanged);
-	for _, v in ipairs(workspace.Mobs:GetChildren()) do
-		v.ChildAdded:Connect(OnMobsChanged);
-		v.ChildRemoved:Connect(OnMobsChanged);
+	for i, v in pairs(MobList) do
+		MobList[i] = tostring(v)
 	end
-	]]
+	local newValues = { "Closest mob", "Highest level possible mob" }
+
+	for i, v in pairs(MobList) do
+		newValues[#newValues + 1] = MobList[i]
+	end
+
+	MobList = newValues
+
+	return MobList
 end
-Groups.Main:AddSlider('YOffset', { Text = 'Y Offset', Min = -25, Max = 25, Default = -13, Suffix = ' studs', Rounding = 1, Compact = true, Tooltip = 'Y Offset when teleporting to mobs' })
+
+Groups.Main:AddDropdown("TargetMobs", {
+	Text = "Target mob",
+	AllowNull = true,
+	Compact = false,
+	Values = GetMobsString(),
+	Default = "Closest mob",
+	Callback = function(Mob)
+		if
+			mobs:FindFirstChild(tostring(Mob), true)
+			and mobs:FindFirstChild(tostring(Mob), true):FindFirstChild("LevelKillReq")
+			and mobs:FindFirstChild(tostring(Mob), true).LevelKillReq.Value
+				> repStorage.PlayerData[tostring(client.UserId)].Level.Value
+		then
+			UI:Notify(
+				string.format(
+					"The mob will not take damage as your level is too low to damage it. \n Your level: %s \n Mob level: %s",
+					tostring(repStorage.PlayerData[tostring(client.UserId)].Level.Value),
+					tostring(mobs:FindFirstChild(tostring(Mob), true).LevelKillReq.Value)
+				),
+				3
+			)
+		end
+	end,
+})
+Groups.Main:AddButton("Update target mobs", function()
+	local TargetMobs = GetMobsString()
+
+	Options.TargetMobs:SetValues(TargetMobs)
+end)
+
+--[[
+Auto update target mobs:
+
+local function OnMobsChanged()
+	local MobList = GetMobsString();
+	Options.TargetMob:SetValues(MobList);
+end;
+
+mobs.ChildAdded:Connect(OnMobsChanged);
+mobs.ChildRemoved:Connect(OnMobsChanged);
+for _, v in ipairs(mobs:GetChildren()) do
+	v.ChildAdded:Connect(OnMobsChanged);
+	v.ChildRemoved:Connect(OnMobsChanged);
+end
+]]
+
+Groups.Main:AddSlider('YOffset', { Text = 'Height offset', Min = -50, Max = 50, Default = 7, Suffix = ' studs', Rounding = 1, Compact = true, Tooltip = 'Height offset when teleporting to mobs' })
+Groups.Main:AddSlider('XOffset', { Text = 'X position offset', Min = -50, Max = 50, Default = 0, Suffix = ' studs', Rounding = 1, Compact = true, Tooltip = 'X offset when teleporting to mobs' })
+Groups.Main:AddSlider('ZOffset', { Text = 'Z position offset', Min = -50, Max = 50, Default = 0, Suffix = ' studs', Rounding = 1, Compact = true, Tooltip = 'Z offset when teleporting to mobs' })
 
 Groups.Credits = Tabs.UISettings:AddRightGroupbox('Credits')
 
