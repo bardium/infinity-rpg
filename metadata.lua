@@ -1,5 +1,5 @@
 return {
-	version = '1.05',
+	version = '1.06',
 	updated = '7/30/2023',
-	message = 'x, y, and z offset'
+	message = 'ranged support + better highest level mob selection'
 }
