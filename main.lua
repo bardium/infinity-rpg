@@ -1,7 +1,7 @@
 --[[
 CREDITS:
 UI Library: Inori & wally
-Script: goosebetter
+Script: bardium
 ]]
 
 repeat
@@ -398,7 +398,7 @@ Groups.Main:AddSlider('ZOffset', { Text = 'Z position offset', Min = -50, Max = 
 
 Groups.Credits = Tabs.UISettings:AddRightGroupbox('Credits')
 
-addRichText(Groups.Credits:AddLabel('<font color="#0bff7e">Goose Better</font> - script'))
+addRichText(Groups.Credits:AddLabel('<font color="#0bff7e">bardium</font> - script'))
 addRichText(Groups.Credits:AddLabel('<font color="#3da5ff">wally & Inori</font> - ui library'))
 
 Groups.UISettings = Tabs.UISettings:AddRightGroupbox('UI Settings')
